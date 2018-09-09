@@ -1,0 +1,6 @@
+"STARTUP.obj",
+"clock.obj",
+"initMCU.obj",
+"iic.obj",
+"PCF8563.obj" 
+TO "clock" 

@@ -1,0 +1,73 @@
+C51 COMPILER V9.00   INITMCU                                                               09/06/2018 20:28:56 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE INITMCU
+OBJECT MODULE PLACED IN initMCU.OBJ
+COMPILER INVOKED BY: F:\Program Files\keil4\C51\BIN\C51.EXE initMCU.c LARGE BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include<initMCU.h>
+   2          #include<STC12C54.h>
+   3          #include<iic.h>
+   4          #include<PCF8563.h>
+   5          receiveBuf      receiveStr;
+   6          
+   7          void initMCU()
+   8          {       
+   9   1              receiveStr.size = 0;
+  10   1              setUART();
+  11   1              //time_init(); //时钟芯片初始时间设置
+  12   1          pcf_init();
+  13   1              enableUartPort();
+  14   1      
+  15   1              P1M0 = 0x00; //P1推挽输出
+  16   1              P1M1 = 0xff;
+  17   1      }
+  18          
+  19          // 波特率600  自动获取mcu内部时钟   FSOC约为5447000
+  20          void setUART()
+  21          {
+  22   1              int BAUD = 600;
+  23   1              BYTE *p = 0xF9;
+  24   1              long FSOC = 0;
+  25   1              long FSOCb =  *p;
+  26   1              long FSOCc =  *(++p);
+  27   1              long FSOCd =  *(++p);
+  28   1              FSOC = (FSOCb<<16)+ (FSOCc<<8) +FSOCd;
+  29   1      
+  30   1              SCON=0x50;
+  31   1              TMOD = 0x20;  //八位自动重装
+  32   1              
+  33   1              TH1 = (int)(256-(FSOC/12.0/32/BAUD));
+  34   1              TL1 = TH1;
+  35   1              TR1=1;
+  36   1              ES=1;
+  37   1              EA=1;
+  38   1      }
+  39          //使能串口
+  40          void enableUartPort()
+  41          {
+  42   1              P3=0x03;//使能串口
+  43   1      }
+  44          //撤销串口
+  45          void disableUartPort()
+  46          {
+  47   1              P3=0x00;//撤销
+  48   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    320    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =     51      17
+   PDATA SIZE       =   ----    ----
+C51 COMPILER V9.00   INITMCU                                                               09/06/2018 20:28:56 PAGE 2   
+
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

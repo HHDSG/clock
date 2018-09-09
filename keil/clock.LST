@@ -1,0 +1,229 @@
+C51 COMPILER V9.00   CLOCK                                                                 09/06/2018 20:28:56 PAGE 1   
+
+
+C51 COMPILER V9.00, COMPILATION OF MODULE CLOCK
+OBJECT MODULE PLACED IN clock.OBJ
+COMPILER INVOKED BY: F:\Program Files\keil4\C51\BIN\C51.EXE clock.c LARGE BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          #include<STC12C54.h>
+   2          #include<initMCU.h>
+   3          #include<iic.h>
+   4          #include<PCF8563.h>
+   5          #include<string.h>
+   6          
+   7          //#define DEBUG 
+   8          #define CMD_SET_TIME 1
+   9          #define SET_MODE 1
+  10          #define RUN_MODE 0
+  11          #define setKey P37
+  12          //0~F 点 共阴
+  13          BYTE disPlayCode[]= {0x3f,0x06,0x5b,0x4f,0x66,0x6d,0x7d,0x07,0x7f,0x6f,0x77,0x7c,0x39,0x5e,0x79,0x71,0x80}
+             -;
+  14          
+  15          volatile bit busy;      //串口发送忙
+  16          extern receiveBuf receiveStr;  //串口接收数据buffer
+  17          
+  18          
+  19          void sendData(BYTE dat);
+  20          void sendString(char *s);
+  21          int phaseCMD(char *cmd);
+  22          bit switchRunMode(bit runMode);
+  23          void getTime(Time *curTime);
+  24          void setTime(Time *setTime);
+  25          void disPlayTime(Time *curTime);
+  26          
+  27          int main()
+  28          {
+  29   1              int i=0;
+  30   1              Time curTime;
+  31   1              bit runMode = RUN_MODE;
+  32   1      
+  33   1              Time temp;
+  34   1              temp.hour=0x20;
+  35   1              temp.min=0x29;
+  36   1              temp.week=0x3;//减一
+  37   1      
+  38   1              setKey =1;
+  39   1              delayNus(10000);
+  40   1              initMCU();
+  41   1              disableUartPort();
+  42   1      
+  43   1              //setTime(&temp);       
+  44   1              
+  45   1              
+  46   1              while(1)                                                                                                                                                                         
+  47   1              {               
+  48   2                      if(setKey==0)
+  49   2                      {
+  50   3                              //runMode = switchRunMode(runMode);
+  51   3                      }
+  52   2                      if(runMode == SET_MODE )
+  53   2                      {
+  54   3                              P1 = disPlayCode[5];
+C51 COMPILER V9.00   CLOCK                                                                 09/06/2018 20:28:56 PAGE 2   
+
+  55   3                      }
+  56   2                      if(runMode == RUN_MODE )
+  57   2                      {
+  58   3                              getTime(&curTime);
+  59   3                              disPlayTime(&curTime);
+  60   3                      }
+  61   2                      
+  62   2              }
+  63   1              return 0;
+  64   1      }
+  65          
+  66          void disPlayTime(Time *curTime)
+  67          {
+  68   1              int delayNum =10;
+  69   1              static BYTE preSec = 0;
+  70   1              static bit dotLight = 0;
+  71   1      
+  72   1              P1= disPlayCode[curTime->hour/10];
+  73   1              P17=dotLight;
+  74   1              if(curTime->sec!=preSec)
+  75   1              {
+  76   2                      dotLight = ~dotLight;
+  77   2                      preSec = curTime->sec;
+  78   2              }
+  79   1              P32=0;
+  80   1              delayNus(delayNum);
+  81   1              P32=1;
+  82   1      
+  83   1              P1 = disPlayCode[curTime->hour%10];
+  84   1              P17 = (curTime->week & 0x04) >>2; 
+  85   1              P33=0;
+  86   1              delayNus(delayNum);
+  87   1              P33=1;
+  88   1      
+  89   1              P1 = disPlayCode[curTime->min/10];
+  90   1              P17 = (curTime->week & 0x02) >>1;
+  91   1              P34=0;
+  92   1              delayNus(delayNum);
+  93   1              P34=1;
+  94   1      
+  95   1              P1 = disPlayCode[curTime->min%10];
+  96   1              P17 = curTime->week & 0x01;
+  97   1              P35=0;
+  98   1              delayNus(delayNum);
+  99   1              P35=1; 
+ 100   1              
+ 101   1      }
+ 102          
+ 103          void getTime(Time *curTime)
+ 104          {
+ 105   1              curTime->sec=0x7f&iic_rec_add_byte(0x02);    //读取秒
+ 106   1              curTime->sec = bcd_dec(curTime->sec);
+ 107   1      
+ 108   1              curTime->min=0x7f&iic_rec_add_byte(0x03);   //读取分钟
+ 109   1              curTime->min = bcd_dec(curTime->min);
+ 110   1      
+ 111   1              curTime->hour=0x3f&iic_rec_add_byte(0x04);  //读取小时
+ 112   1              curTime->hour = bcd_dec(curTime->hour);
+ 113   1      
+ 114   1              curTime->week=0x07&iic_rec_add_byte(0x06);  //读取星期
+ 115   1              curTime->week = curTime->week + 1;//1~7
+ 116   1      }
+C51 COMPILER V9.00   CLOCK                                                                 09/06/2018 20:28:56 PAGE 3   
+
+ 117          
+ 118          void setTime(Time *setTime) //设置PCF8563时间
+ 119          {
+ 120   1              iic_send_add_byte(0x02,setTime->sec);         //0秒  BCD编码
+ 121   1              iic_send_add_byte(0x03,setTime->min);         //0分钟    
+ 122   1              iic_send_add_byte(0x04,setTime->hour);          //0小时  
+ 123   1              iic_send_add_byte(0x06,setTime->week);  //星期
+ 124   1      }
+ 125          
+ 126          
+ 127          bit switchRunMode(bit runMode)
+ 128          {
+ 129   1              delayNus(10000);//大约20ms
+ 130   1              
+ 131   1              if(setKey == 0)//按键按下
+ 132   1              {
+ 133   2                      return runMode;
+ 134   2              }
+ 135   1              delayNus(50000);
+ 136   1              if(setKey != 0)//按键抬起
+ 137   1              {
+ 138   2                      return runMode;
+ 139   2              }
+ 140   1      
+ 141   1              return runMode==RUN_MODE? SET_MODE:RUN_MODE;
+ 142   1      }        
+ 143          
+ 144           
+ 145          int phaseCMD(char *cmd)
+ 146          {
+ 147   1              char const *cmdSetTime = "setTime";
+ 148   1              char temp[20]={'\n'};
+ 149   1              if(receiveStr.size ==0)
+ 150   1              {
+ 151   2                      return 0;
+ 152   2              }
+ 153   1              strncpy(temp,cmd,7);
+ 154   1              if(strcmp(temp,cmdSetTime)==0)
+ 155   1              {
+ 156   2                      return  CMD_SET_TIME;
+ 157   2              }
+ 158   1              return 0;
+ 159   1      }
+ 160           
+ 161          
+ 162          
+ 163          void Uart_Isr() interrupt 4 using 1
+ 164          {
+ 165   1              char temp;
+ 166   1              if(RI)
+ 167   1              {
+ 168   2                      RI=0;
+ 169   2                      temp = SBUF;
+ 170   2                  receiveStr.buf[receiveStr.size++] = temp;
+ 171   2                      if(receiveStr.size==50)
+ 172   2                              receiveStr.size = 0;
+ 173   2                      if(temp=='\n')
+ 174   2                      {       
+ 175   3                              receiveStr.size = 0;    
+ 176   3                      }
+ 177   2              }
+ 178   1              if(TI)
+C51 COMPILER V9.00   CLOCK                                                                 09/06/2018 20:28:56 PAGE 4   
+
+ 179   1              {
+ 180   2                      TI=0;
+ 181   2                      busy = 0;
+ 182   2              }
+ 183   1      }
+ 184          
+ 185          void sendString(char *s)
+ 186          {
+ 187   1              while(*s != '\n' && *s!= 0)
+ 188   1              {
+ 189   2                      sendData(*s++);
+ 190   2              }
+ 191   1              sendData('\n');
+ 192   1      }
+ 193          
+ 194          void sendData(BYTE dat)
+ 195          {
+ 196   1              while(busy);
+ 197   1              busy=1;
+ 198   1              SBUF=dat;
+ 199   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    932    ----
+   CONSTANT SIZE    =     28    ----
+   XDATA SIZE       =     18      50
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      2       2
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
